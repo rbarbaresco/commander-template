@@ -35,50 +35,98 @@ function withIds(html) {
   return d.innerHTML;
 }
 
-// One card per section: header button opens it, ### subsections are listed with their first paragraph.
-function card(s, over) {
+// One entry per section: the header button opens it. Pillars also list their ### subsections.
+function card(s, over, pillar) {
   const o = (s.num && over[s.num]) || {};
   const li = document.createElement("li");
   li.className = "col" + (s.todo ? " todo" : "");
-  li.innerHTML = `<button class="head"><span class="badge"></span><strong></strong><span class="blurb"></span></button><ul class="subs"></ul>`;
+  li.innerHTML = `<button class="head"><span class="badge"></span><strong></strong><span class="blurb"></span></button>`;
   li.querySelector(".badge").textContent = o.badge ?? "";
   li.querySelector("strong").textContent = s.name;
   li.querySelector(".blurb").textContent = s.todo ? "To come." : o.blurb ?? "";
   li.querySelector(".head").addEventListener("click", () => open(s.id));
+  if (!pillar) return li;
+  const subs = document.createElement("ul");
+  subs.className = "subs";
   const doc = document.createElement("div");
   doc.innerHTML = s.html;
   for (const h of doc.querySelectorAll("h3")) {
-    const item = document.createElement("li");
     const a = document.createElement("a");
     a.href = "#" + h.id;
     a.textContent = h.textContent;
-    item.append(a);
-    const p = h.nextElementSibling;
-    if (p?.tagName === "P") {
-      const sm = document.createElement("small");
-      sm.textContent = p.textContent;
-      item.append(sm);
-    }
-    li.querySelector(".subs").append(item);
+    subs.append(document.createElement("li"));
+    subs.lastChild.append(a);
   }
+  li.append(subs);
   return li;
 }
 
-// Unnumbered sections read inline in the header; numbered ones sit above or below the pillar row
+// Light up one pillar's slots in the deck strip (null clears it). Hover is a bonus; click still opens.
+function light(id) {
+  $("deck").classList.toggle("lit", !!id);
+  for (const i of $("deck").querySelectorAll(".slots i")) i.classList.toggle("on", i.dataset.id === id);
+}
+function hoverLights(el, id) {
+  el.addEventListener("mouseenter", () => light(id));
+  el.addEventListener("mouseleave", () => light(null));
+  el.addEventListener("focusin", () => light(id));
+  el.addEventListener("focusout", () => light(null));
+}
+
+// The hero: a Commander deck's 99 slots, the pillars' share coloured from their overview.json badge.
+function deck(pillars, over) {
+  const DECK = 99;
+  const slots = document.createElement("div");
+  slots.className = "slots";
+  slots.setAttribute("aria-hidden", "true");
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  let used = 0;
+  pillars.forEach((s, i) => {
+    s.color = `var(--p${(i % 3) + 1})`; // three pillar colours in style.css; a fourth would reuse the first
+    const n = +(String(over[s.num].badge ?? "").match(/\d+/)?.[0] ?? 0);
+    used += n;
+    for (let k = 0; k < n; k++) {
+      const slot = document.createElement("i");
+      slot.dataset.id = s.id;
+      slot.style.setProperty("--c", s.color);
+      slots.append(slot);
+    }
+    const b = document.createElement("button");
+    b.innerHTML = `<strong></strong> <span class="n"></span>`;
+    b.style.setProperty("--c", s.color);
+    b.querySelector("strong").textContent = s.name;
+    b.querySelector(".n").textContent = over[s.num].badge;
+    b.addEventListener("click", () => open(s.id));
+    hoverLights(b, s.id);
+    legend.append(b);
+  });
+  slots.insertAdjacentHTML("beforeend", "<i></i>".repeat(Math.max(DECK - used, 0)));
+  legend.insertAdjacentHTML("beforeend", `<span>Lands and your own categories, about ${DECK - used}</span>`);
+  $("deck").prepend(slots, legend);
+  $("deck").querySelector("figcaption").textContent =
+    `A Commander deck is 99 cards plus the commander. The pillars take about ${used} of them.`;
+}
+
+// Unnumbered sections fold into the header; numbered ones sit above or below the pillar row
 // depending on whether they come before or after the first pillar in the template.
 function render(over) {
   let seenPillar = false;
+  const pillars = sections.filter((s) => s.num && over[s.num]?.pillar);
+  deck(pillars, over);
   for (const s of sections) {
     if (!s.num && s.title !== "Glossary") {
-      const sec = document.createElement("section");
-      sec.innerHTML = `<h2></h2>` + s.html;
-      sec.querySelector("h2").textContent = s.title;
+      const sec = document.createElement("details");
+      sec.innerHTML = `<summary></summary>` + s.html;
+      sec.querySelector("summary").textContent = s.title;
       $("intro").append(sec);
       continue;
     }
-    const pillar = !!(s.num && over[s.num]?.pillar);
+    const pillar = pillars.includes(s);
     seenPillar ||= pillar;
-    $(pillar ? "pillars" : seenPillar ? "after" : "before").append(card(s, over));
+    const li = card(s, over, pillar);
+    if (pillar) { li.style.setProperty("--c", s.color); hoverLights(li, s.id); }
+    $(pillar ? "pillars" : seenPillar ? "after" : "before").append(li);
   }
 }
 
@@ -86,6 +134,7 @@ function open(id, anchor) {
   const s = sections.find((x) => x.id === id);
   if (!s) return;
   $("panel-body").innerHTML = `<h2 id="panel-title">${s.title}</h2>` + s.html;
+  $("panel").style.setProperty("--c", s.color ?? "var(--fg)");
   if (!$("panel").open) $("panel").showModal();
   history.replaceState(null, "", "#" + (anchor || id));
   const t = anchor && $("panel-body").querySelector("#" + CSS.escape(anchor));
