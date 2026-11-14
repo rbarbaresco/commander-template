@@ -1,0 +1,8 @@
+# Commander Deck Template
+
+> A personal, non-competitive Commander (EDH) deck-building template: three pillars (ramp, card advantage, removal), land drops and categories. Every number in it is a guideline that moves with the deck, not a fixed rule. The rendered page is built from the Markdown file below, so read that instead of the HTML.
+
+## Template
+
+- [commander-template.md](commander-template.md): the whole template as Markdown, the single source of truth for the site
+- [GLOSSARY.md](GLOSSARY.md): the project's own terms, with words to avoid

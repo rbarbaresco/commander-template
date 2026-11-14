@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commander Deck Template</title>
+<meta name="description" content="A personal Commander deck-building template: the pillars, the numbers, and the caveats.">
+<link rel="stylesheet" href="style.css">
+<link rel="alternate" type="text/markdown" href="commander-template.md" title="Template as Markdown">
+</head>
+<body>
+<header>
+  <h1 id="title">Commander Deck Template</h1>
+  <div id="banner"></div>
+  <div id="intro"></div>
+</header>
+<main>
+  <ul id="before" class="rows" aria-label="Before the pillars"></ul>
+  <ul id="pillars" class="pillars" aria-label="The pillars"></ul>
+  <ul id="after" class="rows" aria-label="After the pillars"></ul>
+</main>
+<dialog id="panel" aria-labelledby="panel-title">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <article id="panel-body"></article>
+</dialog>
+<footer>
+  <p>For bots and LLMs: read <a href="commander-template.md">the template as Markdown</a> or <a href="llms.txt">llms.txt</a>.</p>
+  Unofficial fan content. Not approved or endorsed by Wizards of the Coast. Magic: The Gathering is a trademark of Wizards of the Coast LLC.
+</footer>
+<noscript>This page needs JavaScript to show the template.</noscript>
+<script src="vendor/marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

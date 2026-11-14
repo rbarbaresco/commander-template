@@ -1,0 +1,8 @@
+{
+  "1": { "blurb": "Every deck rests on three pillars." },
+  "2": { "pillar": true, "badge": "~12", "blurb": "You can't cast your spells." },
+  "3": { "pillar": true, "badge": "~12", "blurb": "You run out of things to cast." },
+  "4": { "pillar": true, "badge": "~12", "blurb": "You die before your deck does anything." },
+  "5": { "blurb": "Enough lands to hit your land drops." },
+  "6": { "blurb": "Tutors, counters, engines, and spare slots." }
+}
