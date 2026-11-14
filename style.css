@@ -1,120 +1,203 @@
 @font-face { font-family: Literata; font-style: normal; font-weight: 400 800; font-display: swap; src: url(vendor/literata.woff2) format("woff2"); }
 @font-face { font-family: Literata; font-style: italic; font-weight: 400 800; font-display: swap; src: url(vendor/literata-italic.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders Display"; font-weight: 500 900; font-display: swap; src: url(vendor/big-shoulders-display.woff2) format("woff2"); }
 
-/* Cool paper and ink. One colour per pillar, deliberately not mana colours: ramp isn't only green. */
+/* The table (indigo) is the frame; paper is where you read. Job colours live only on the ring, numerals and openers,
+   and deliberately aren't mana colours: ramp isn't only green. */
 :root {
-  --bg: #eef0f2; --surface: #fff; --fg: #1f2430; --muted: #5b6270; --line: #d3d7de; --slot: #808794;
-  --p1: #2a7262; --p2: #3b5ba9; --p3: #a23b56;
+  --table: #191b2e; --felt: #20233b; --seat: #2e3254; --rest: #3a3e63; --chalk: #f6f4ef; --chalk-dim: #a9abc6;
+  --paper: #f6f4ef; --ink: #1d1f30; --muted: #55576b; --line: #dcd8cd; --wash: #ece8de;
+  --ramp: #e8a33a; --draw: #4f9ee0; --kill: #e0533b;
+  --shade: 32%; /* how much darker a job colour gets on paper, to keep its contrast */
+  --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --ease: cubic-bezier(.16, 1, .3, 1); --spring: cubic-bezier(.22, 1, .36, 1);
+  --rail: 18rem; --lap: 48s; /* one clock: the turn pointer's lap drives every ambient movement */
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #171a21; --surface: #20242d; --fg: #e6e8ec; --muted: #9aa1ae; --line: #3a404c; --slot: #646b79;
-    --p1: #5fb8a3; --p2: #8aa3e6; --p3: #e07a93; }
+  :root { --paper: #111220; --ink: #e8e6df; --muted: #a4a6b8; --line: #2c2f48; --wash: #1a1c2e; --shade: 0%; color-scheme: dark; }
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.65 Literata, Georgia, serif; }
-header, main, footer { max-width: 72rem; margin: 0 auto; padding: 0 16px; }
-a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: .15em; }
+html { scrollbar-color: var(--rest) transparent; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.65 Literata, Georgia, serif; font-optical-sizing: auto; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .2em; text-decoration-color: color-mix(in oklab, currentColor 40%, transparent); }
 a:hover { text-decoration-color: currentColor; }
-:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; border-radius: 2px; }
-button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 3px; }
+::selection { background: color-mix(in oklab, var(--ramp) 45%, transparent); color: inherit; }
 [hidden] { display: none !important; }
-::selection { background: color-mix(in srgb, var(--p2) 30%, transparent); }
 p, li, figcaption { text-wrap: pretty; }
-h1, h2 { text-wrap: balance; }
-.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+h1, h2, h3 { text-wrap: balance; }
+.skip { position: absolute; left: 1rem; top: -4rem; z-index: 20; background: var(--chalk); color: var(--table); padding: .5rem 1rem; border-radius: 6px; }
+.skip:focus { top: 1rem; }
+.noscript { padding: 2rem 1rem; }
 
-/* Header: title, the template's own status note, and the way into the glossary. */
-h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; font-weight: 750; letter-spacing: -.02em; margin: 3rem 0 1rem; }
-#banner { color: var(--muted); font-size: .9rem; max-width: 65ch; }
-.help { margin: .75rem 0 0; font-size: .95rem; }
-#banner blockquote { margin: 0; }
-#banner p { margin: 0 0 .5rem; }
-/* The unnumbered sections ("How to read the numbers") sit under the strip they explain. */
-#intro details { max-width: 40rem; margin: .5rem 0; }
-#intro summary { cursor: pointer; font-weight: 650; }
-#intro details[open] summary { margin-bottom: .25rem; }
+/* ---------- The table and its ring ---------- */
+.table { background: var(--table); color: var(--chalk); }
+.ring-wrap { position: relative; margin: 0; view-transition-name: ring; }
+.ring { display: block; width: 100%; height: auto; overflow: visible; }
+.felt { fill: var(--felt); }
+.slot { stroke: var(--c, var(--rest)); stroke-width: 7; stroke-linecap: round;
+  transform-box: view-box; transform-origin: 280px 230px; transition: transform .55s var(--spring), opacity .4s var(--ease); }
+.slot.cmd { stroke: var(--chalk); }
+.slot.rest { stroke: var(--rest); }
+.ready .slot { animation: deal 1.1s var(--ease) backwards; animation-delay: calc(var(--i) * 11ms); }
+@keyframes deal { from { opacity: 0; transform: rotate(-70deg) scale(.5); } }
+.arc { cursor: pointer; }
+.hit { fill: transparent; }
+.arc:focus { outline: none; }
+.arc:focus-visible .hit { stroke: var(--chalk); stroke-width: 2; stroke-dasharray: 4 5; }
+[data-lit] .slot:not(.cmd) { opacity: .28; }
+[data-lit] .arc.on .slot { opacity: 1; transform: scale(1.07); }
+.arc-label { font-family: var(--display); fill: var(--chalk-dim); transition: opacity .4s var(--ease); }
+.arc-n { font-size: 34px; font-weight: 800; fill: var(--c); }
+.arc-name { font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+[data-lit] .arc:not(.on) .arc-label { opacity: .35; }
+.seat rect { fill: var(--seat); animation: seat var(--lap) linear infinite; animation-delay: calc(var(--t) * var(--lap) - 2s); }
+@keyframes seat { 0%, 9%, 100% { fill: var(--seat); } 3% { fill: var(--chalk-dim); } }
+.seat-label { font: 600 14px var(--display); letter-spacing: .2em; text-transform: uppercase; fill: var(--chalk-dim); }
+.turn { fill: var(--chalk); transform-box: view-box; transform-origin: 280px 230px; animation: lap var(--lap) linear infinite; }
+@keyframes lap { to { transform: rotate(1turn); } }
+.flag circle { fill: var(--table); stroke: var(--chalk); stroke-width: 2.5; }
+.center { position: absolute; left: 50%; top: 50%; translate: -50% -50%; text-align: center; pointer-events: none; width: 40%; }
+.center b { display: block; font: 800 clamp(3.5rem, 8vw, 6rem)/.82 var(--display); }
+.center span { display: block; margin-top: .6rem; font: 600 .95rem/1.2 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--chalk-dim); }
+#ring-cap { margin: 1rem auto 0; max-width: 36ch; text-align: center; font-size: .9rem; line-height: 1.5; color: var(--chalk-dim); }
+.back { font: 700 1rem var(--display); letter-spacing: .14em; text-transform: uppercase; text-decoration: none; color: var(--chalk); }
+.back:hover { color: var(--ramp); }
+.crumb { display: none; }
 
-/* The deck strip: 99 card-shaped slots, filled column by column so each ~12 pillar is a 4x3 block. */
-.deck { margin: 3rem 0 1rem; }
-.slots { display: grid; grid-template-rows: repeat(3, auto); grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
-.slots i { aspect-ratio: 63 / 88; border-radius: 3px; background: var(--c, none); box-shadow: inset 0 0 0 1px var(--c, var(--slot)); transition: opacity .15s; }
-.deck.lit .slots i[data-id]:not(.on) { opacity: .2; }
-.legend { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1.75rem; margin-top: .75rem; font-size: .95rem; color: var(--muted); }
-.legend button { all: unset; cursor: pointer; padding: .35rem 0; }
-.legend button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
-.legend strong { color: var(--c); }
-.n, .badge { font-variant-numeric: tabular-nums lining-nums; }
-.deck figcaption { margin-top: 1.25rem; color: var(--muted); }
+/* ---------- Overview ---------- */
+.head h1 { margin: 0; font: 800 clamp(3.4rem, 7.4vw, 6rem)/.86 var(--display); letter-spacing: -.005em; text-transform: uppercase; }
+.banner { margin-top: 1.5rem; font-size: .9rem; line-height: 1.55; color: var(--muted); max-width: 52ch; }
+.banner blockquote { margin: 0; }
+.banner p { margin: 0 0 .35rem; }
+.lede { font-size: clamp(1.3rem, 2.2vw, 1.6rem); line-height: 1.35; margin: 0 0 1.75rem; max-width: 26ch; }
+.note { margin: 2.5rem 0 0; max-width: 60ch; }
+.note h2 { margin: 0 0 .4rem; font: 700 1.05rem var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.note p { margin: 0; }
 
-/* Sections. Pillars are decklist columns headed by their count; the rest are a quiet row of links. */
-.rows, .pillars, .subs { list-style: none; margin: 0; padding: 0; }
-.col h2 { margin: 0; font-size: inherit; line-height: inherit; }
-.head { all: unset; cursor: pointer; display: block; }
-.head:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
-.badge:empty, .blurb:empty, .subs:empty { display: none; }
-.head strong { font-weight: 700; text-decoration: underline 1px transparent; text-underline-offset: .2em; }
-.head:hover strong { text-decoration-color: currentColor; }
-.head[aria-expanded="true"] strong { text-decoration: underline 3px var(--c, currentColor); }
-.blurb { margin: 0; color: var(--muted); }
+.pillars, .others, .subs { list-style: none; margin: 0; padding: 0; }
+.pillars { border-top: 2px solid var(--ink); }
+.row { border-bottom: 1px solid var(--line); }
+.row-link { display: grid; grid-template-columns: 5.25rem 1fr; column-gap: .75rem; align-items: baseline; padding: 1rem .5rem 1rem 0; text-decoration: none; border-radius: 4px; transition: background-color .35s var(--ease); }
+.row-link:hover, .row-link:focus-visible { background: var(--wash); }
+.row .n { grid-row: span 2; font: 800 3.4rem/1 var(--display); color: color-mix(in oklab, var(--c), #000 var(--shade)); transition: translate .5s var(--spring); }
+.row-link:hover .n, .row-link:focus-visible .n { translate: .35rem 0; }
+.row strong { font: 700 1.65rem/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.row .blurb { grid-column: 2; color: var(--muted); font-size: 1rem; line-height: 1.45; }
+.row.last strong::after { content: "Last read"; margin-left: .7rem; padding: .1rem .45rem; vertical-align: .3em; font: 700 .7rem var(--display); letter-spacing: .14em; color: var(--paper); background: var(--ink); border-radius: 3px; }
+.subs { display: flex; flex-wrap: wrap; gap: .1rem 1.1rem; margin: -.4rem 0 1rem 6rem; font-size: .88rem; line-height: 1.5; }
+.subs a { color: var(--muted); text-decoration: none; }
+.subs a:hover { color: var(--ink); text-decoration: underline; }
+.others { margin-top: 2.5rem; }
+.others .row-link { grid-template-columns: 3rem 1fr; padding-block: .7rem; }
+.others .k { grid-row: span 2; font: 800 1.6rem/1 var(--display); color: var(--muted); }
+.others strong { font-size: 1.25rem; }
+.others .blurb { font-size: .92rem; }
+.row.todo strong { color: var(--muted); }
 
-.rows:empty { display: none; }
-.rows { display: flex; flex-wrap: wrap; gap: .5rem 2.5rem; margin: 1.5rem 0; }
-.rows .col { max-width: 22rem; }
-.rows .head strong { text-decoration-color: var(--muted); }
-.rows .head:hover strong { text-decoration-color: currentColor; }
-.rows .badge { margin-right: .35rem; }
-.todo { color: var(--muted); }
+/* ---------- Reader ---------- */
+.toc summary { cursor: pointer; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li > a { display: block; padding: .4rem .25rem; text-decoration: none; font: 700 1.05rem/1.25 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.toc li ol { display: none; margin: .1rem 0 .8rem; }
+.toc li.open > ol { display: block; }
+.toc li ol a { font: 400 .86rem/1.4 Literata, Georgia, serif; letter-spacing: 0; text-transform: none; padding: .3rem .25rem .3rem 1rem; }
+.toc [aria-current]::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .5rem; border-radius: 50%; background: var(--c, currentColor); vertical-align: .1em; }
 
-.pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 2.5rem; margin: 2.5rem 0; }
-.pillars .col { border-top: 4px solid var(--c); padding-top: .75rem; }
-.pillars h2 { font-size: 1.3rem; line-height: 1.3; }
-.pillars .badge { color: var(--c); font-weight: 750; margin-right: .3rem; }
-.pillars .blurb { font-size: 1rem; margin-top: .15rem; }
-.subs { margin-top: 1rem; display: grid; gap: .2rem; font-size: .95rem; line-height: 1.45; }
-.subs a { display: inline-block; padding: .15rem 0; }
-/* The open pillar hands its contents list to the reader, so it isn't shown (or read out) twice. */
-.col:has(> h2 [aria-expanded="true"]) > .subs { display: none; }
-a.term { text-decoration-style: dotted; }
+.doc { padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 5vw, 5rem) 3rem; }
+.doc.enter { animation: rise .55s var(--ease); }
+@keyframes rise { from { opacity: 0; translate: 0 14px; } }
+#doc-title { display: flex; align-items: baseline; gap: .2em; margin: 0 0 2rem; max-width: 68ch; font: 800 clamp(2.8rem, 6vw, 4.6rem)/.9 var(--display); text-transform: uppercase; }
+#doc-title:focus, .prose :is(h3, h4):focus { outline: none; }
+.num { color: color-mix(in oklab, var(--c), #000 var(--shade)); }
+.num:not(:empty)::after { content: "."; }
+.prose { max-width: 68ch; }
+.prose > :first-child { margin-top: 0; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1.1em; }
+.prose li { margin-bottom: .35em; }
+.prose h3 { margin: 2.6em 0 .6em; font-size: 1.35rem; line-height: 1.3; font-weight: 650; scroll-margin-top: 1.5rem; }
+.prose h4 { margin: 2em 0 .5em; font-size: 1.08rem; font-weight: 650; scroll-margin-top: 1.5rem; }
+.prose strong { font-weight: 650; }
+.prose blockquote { margin: 0 0 1.2em; padding: .9rem 1.1rem; background: var(--wash); border-radius: 6px; }
+.prose blockquote p:last-child { margin: 0; }
+.prose code { font-size: .88em; }
+.term { text-decoration-style: dotted; text-decoration-color: var(--muted); cursor: help; }
+.scroll { overflow-x: auto; margin: 0 0 1.4em; }
+.prose table { border-collapse: collapse; width: 100%; font-size: .93rem; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.prose th { white-space: nowrap; text-align: left; font: 700 .85rem var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--ink); padding: .5rem .75rem .5rem 0; }
+.prose td { border-bottom: 1px solid var(--line); padding: .6rem .75rem .6rem 0; vertical-align: top; }
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 68ch; margin-top: 4rem; padding-top: 1.5rem; border-top: 2px solid var(--ink); }
+.pager a { text-decoration: none; padding: .5rem 0; }
+.pager #next { grid-column: 2; text-align: right; }
+.pager small { display: block; font: 700 .8rem var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.pager span { font: 800 1.6rem/1.1 var(--display); text-transform: uppercase; }
+.pager a:hover span { text-decoration: underline; text-decoration-thickness: 2px; }
 
-@media (prefers-reduced-motion: reduce) { .slots i { transition: none; } }
+.foot { font-size: .82rem; line-height: 1.5; color: var(--muted); padding: 2rem 0 2.5rem; }
+.foot p { margin: 0 0 .4rem; max-width: 70ch; }
 
-/* Reading view, opened in place under its row. The top rule takes the section's colour so you know where you are. */
-.reader { display: grid; grid-template-columns: minmax(0, 40rem) minmax(0, 15rem); grid-template-areas: "bar bar" "body toc" "end end"; column-gap: 4rem;
-  margin: 0 0 3rem; padding: 0 1.75rem 2rem; background: var(--surface); border-top: 6px solid var(--c, var(--fg)); }
-.bar { grid-area: bar; position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: .75rem 0; background: var(--surface); border-bottom: 1px solid var(--line); }
-.bar h2 { margin: 0; font-size: 1.5rem; line-height: 1.2; }
-.bar h2:focus, #reader-body [tabindex="-1"]:focus { outline: none; } /* focused by script so screen readers land there, not a control */
-.close { flex: none; font-size: .95rem; padding: .45rem .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
-.close:hover { border-color: var(--muted); }
-#reader-toc:has(.subs:empty) { display: none; } /* otherwise its "toc" area becomes implicit grid tracks */
-.reader:has(#reader-toc .subs:empty) { grid-template-columns: minmax(0, 40rem); grid-template-areas: "bar" "body" "end"; }
-.reader-slot { grid-column: 1 / -1; flex-basis: 100%; }
-#reader-toc { grid-area: toc; align-self: start; position: sticky; top: 4.5rem; padding-top: 1.5rem; }
-#reader-toc .subs { margin: 0; font-size: .9rem; }
-#reader-body { grid-area: body; padding-top: .5rem; }
-#reader-body h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; scroll-margin-top: 4.5rem; }
-.reader-end { grid-area: end; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
-.reader-end .close { margin-left: auto; }
-#reader-next { font-weight: 650; font-size: 1.1rem; padding: .35rem 0; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: .92rem; line-height: 1.45; }
-th, td { border-bottom: 1px solid var(--line); padding: .45rem .75rem .45rem 0; text-align: left; vertical-align: top; }
-th { font-weight: 700; border-bottom-color: var(--fg); }
-code { font-size: .9em; background: var(--bg); padding: .05rem .3rem; border-radius: 3px; }
+/* ---------- Phone and narrow windows: one column, the ring right under the title ---------- */
+@media (max-width: 59.99rem) {
+  .app { display: flex; flex-direction: column; }
+  .head { order: -2; padding: 2.5rem 1rem 1.5rem; }
+  .table { order: -1; }
+  .intro, .foot { padding-inline: 1rem; }
+  [data-view="overview"] .table { padding: 1rem 1rem 1.5rem; }
+  [data-view="overview"] .ring-wrap { max-width: 32rem; margin: 0 auto; }
+  .arc-name, .seat-label { display: none; }
+  .arc-n { font-size: 40px; }
+  .intro { padding-top: 2rem; }
+  .subs { margin-left: 0; }
 
-footer { color: var(--muted); font-size: .85rem; padding: 2rem 16px 3rem; border-top: 1px solid var(--line); margin-top: 3rem; }
-footer p { margin: 0 0 .5rem; }
-
-@media (max-width: 48rem) {
-  /* Six rows keep the strip short on a phone and each pillar still a solid block. */
-  .slots { grid-template-rows: repeat(6, auto); gap: 3px; }
-  .legend { column-gap: 1.1rem; }
-  .legend > span { flex-basis: 100%; }
-  .legend button, .subs a, .head { padding: .55rem 0; }
-  .subs { gap: 0; }
-  .reader, .reader:has(#reader-toc .subs:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "toc" "body" "end"; margin-inline: -16px; padding: 0 16px 1.5rem; }
-  #reader-toc { position: static; padding-top: 1rem; }
-  .close { padding: .7rem 1rem; }
+  [data-view="reader"] .head, [data-view="reader"] .intro { display: none; }
+  [data-view="reader"] .table { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: .9rem; height: 3.5rem; padding: 0 1rem; }
+  [data-view="reader"] .ring-wrap { width: 4.5rem; margin: 0 -1rem; flex: none; order: -1; }
+  [data-view="reader"] .crumb { display: block; margin: 0 0 0 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 700 .95rem var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--chalk-dim); }
+  .toc { margin: 0 1rem; border-bottom: 1px solid var(--line); }
+  .toc summary { padding: .9rem 0; font: 700 1rem var(--display); letter-spacing: .14em; text-transform: uppercase; }
+  .toc[open] summary { color: var(--muted); }
+  .toc nav { padding-bottom: 1rem; }
+  .toc .here { font-weight: 650; }
+  .prose h3, .prose h4 { scroll-margin-top: 4.5rem; }
+  .doc { padding-top: 1.75rem; }
+  .pager span { font-size: 1.25rem; }
 }
+[data-view="overview"] .toc { display: none; }
+[data-view="reader"] .ring-wrap :is(.center, figcaption), [data-view="reader"] :is(.arc-label, .seat-label, .seat, .turn, .flag) { display: none; }
+[data-view="reader"] #ring-cap { display: none; }
+
+/* ---------- Wide: the table is fixed beside the column; in the reader it becomes the left rail ---------- */
+@media (min-width: 60rem) {
+  [data-view="overview"] .table { position: fixed; inset: 0 0 0 auto; width: 54vw; display: grid; place-items: center; padding: 3rem 2.5rem; }
+  [data-view="overview"] .ring-wrap { width: min(100%, 44rem, calc((100vh - 9rem) * 560 / 460)); }
+  [data-view="overview"] :is(.head, .intro, .foot) { width: 46vw; padding-inline: clamp(1.5rem, 4vw, 4rem); }
+  [data-view="overview"] .head { padding-top: clamp(2.5rem, 7vh, 5rem); padding-bottom: 2rem; }
+
+  [data-view="reader"] .head, [data-view="reader"] .intro { display: none; }
+  [data-view="reader"] .table { position: fixed; inset: 0 auto auto 0; width: var(--rail); height: 14rem; padding: 1.4rem 1.5rem 0; }
+  [data-view="reader"] .ring-wrap { width: 15rem; margin: -1rem auto 0; }
+  .toc { position: fixed; top: 14rem; bottom: 0; left: 0; width: var(--rail); overflow-y: auto; padding: .5rem 1.25rem 2rem; background: var(--table); color: var(--chalk-dim); scrollbar-width: thin; }
+  .toc summary { display: none; }
+  .toc li > a:hover, .toc [aria-current], .toc .here { color: var(--chalk); }
+  .toc .here { font-weight: 650; }
+  [data-view="reader"] :is(.doc, .foot) { margin-left: var(--rail); }
+  [data-view="reader"] .foot { padding-inline: clamp(1rem, 5vw, 5rem); }
+}
+
+/* ---------- Moving between overview and reader: the ring morphs, the page crossfades ---------- */
+::view-transition-group(ring) { animation-duration: .65s; animation-timing-function: var(--ease); }
+::view-transition-old(root) { animation: .22s ease-in both fade-out; }
+::view-transition-new(root) { animation: .5s var(--ease) both fade-in; }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes fade-in { from { opacity: 0; translate: 0 12px; } }
+/* In the reader the clock stops: nothing moves beside what you're reading. */
+[data-view="reader"] .turn, [data-view="reader"] .seat rect { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+/* The small ring is a "you are here" map, not a control; it must never cover the Overview link. */
+[data-view="reader"] .ring { pointer-events: none; }
+.back { position: relative; z-index: 1; }

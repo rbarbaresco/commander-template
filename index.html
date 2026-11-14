@@ -5,44 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Commander Deck Template</title>
 <meta name="description" content="A personal Commander deck-building template: the pillars, the numbers, and the caveats.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88'%3E%3Crect width='63' height='88' rx='6' fill='%232a7262'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#191b2e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23191b2e'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23e8a33a' stroke-width='4' stroke-dasharray='10 4'/%3E%3C/svg%3E">
+<link rel="preload" href="vendor/big-shoulders-display.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <link rel="alternate" type="text/markdown" href="commander-template.md" title="Template as Markdown">
 </head>
-<body>
-<header>
-  <h1 id="title">Commander Deck Template</h1>
-  <div id="banner"></div>
-  <p class="help">New to Commander? The <a href="#glossary">glossary</a> explains the terms.</p>
-</header>
-<main>
-  <figure id="deck" class="deck">
-    <figcaption></figcaption>
-  </figure>
-  <div id="intro"></div>
-  <ul id="before" class="rows" aria-label="Before the pillars"></ul>
-  <ul id="pillars" class="pillars" aria-label="The pillars"></ul>
-  <ul id="after" class="rows" aria-label="After the pillars"></ul>
-  <!-- The reading view opens in place: app.js moves it right after the row of the section you opened. -->
-  <section id="reader" class="reader" hidden aria-labelledby="reader-title">
-    <div class="bar">
-      <h2 id="reader-title" tabindex="-1"></h2>
-      <button type="button" class="close" data-close>Close</button>
-    </div>
-    <nav id="reader-toc" aria-label="In this section"></nav>
-    <article id="reader-body"></article>
-    <nav class="reader-end" aria-label="Continue reading">
-      <a id="reader-next" href="#"></a>
-      <button type="button" class="close" data-close>Back to overview</button>
+<body data-view="overview">
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+  <!-- The table: one ring of 100 card slots. On the overview it fills the right half; in the reader it shrinks into the sidebar. -->
+  <aside class="table" aria-label="The deck at a glance">
+    <a class="back" href="#" hidden><span aria-hidden="true">←</span> Overview</a>
+    <figure class="ring-wrap">
+      <svg id="ring" class="ring" viewBox="0 0 560 460" role="group" aria-label="A Commander deck: 99 cards plus your commander"></svg>
+      <div class="center" aria-hidden="true"><b id="center-n">99</b><span id="center-l">+ your commander</span></div>
+      <figcaption id="ring-cap"></figcaption>
+    </figure>
+    <p class="crumb" id="crumb" aria-hidden="true"></p>
+  </aside>
+
+  <header class="head">
+    <h1 id="title">Commander Deck Template</h1>
+    <div id="banner" class="banner"></div>
+  </header>
+
+  <main id="main" class="intro" tabindex="-1">
+    <div id="lede"></div>
+    <ul id="pillars" class="pillars" aria-label="The three pillars"></ul>
+    <ul id="others" class="others" aria-label="The rest of the template"></ul>
+  </main>
+
+  <details id="toc" class="toc">
+    <summary>Contents</summary>
+    <nav aria-label="Template contents"><ol id="toc-list"></ol></nav>
+  </details>
+
+  <article id="doc" class="doc" hidden aria-labelledby="doc-title">
+    <h1 id="doc-title" tabindex="-1"><span class="num" id="doc-num"></span><span id="doc-name"></span></h1>
+    <div id="doc-body" class="prose"></div>
+    <nav class="pager" aria-label="Previous and next section">
+      <a id="prev" rel="prev" href="#"></a>
+      <a id="next" rel="next" href="#"></a>
     </nav>
-  </section>
-</main>
-<footer>
-  <p>For bots and LLMs: read <a href="commander-template.md">the template as Markdown</a> or <a href="llms.txt">llms.txt</a>.</p>
-  <p>Template by Rodrigo Barbaresco.</p>
-  Unofficial fan content. Not approved or endorsed by Wizards of the Coast. Magic: The Gathering is a trademark of Wizards of the Coast LLC.
-</footer>
-<noscript>This page needs JavaScript to show the template.</noscript>
+  </article>
+
+  <footer class="foot">
+    <p>Template by Rodrigo Barbaresco. Unofficial fan content. Not approved or endorsed by Wizards of the Coast. Magic: The Gathering is a trademark of Wizards of the Coast LLC.</p>
+    <p>For bots and LLMs: <a href="commander-template.md">the template as Markdown</a> or <a href="llms.txt">llms.txt</a>.</p>
+  </footer>
+</div>
+<noscript><p class="noscript">This page needs JavaScript to show the template. You can still read <a href="commander-template.md">the template as Markdown</a>.</p></noscript>
 <script src="vendor/marked.min.js"></script>
 <script src="app.js"></script>
 </body>
