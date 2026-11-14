@@ -1,18 +1,24 @@
-// Source of truth is commander-template.md; overview.json only adds badge/blurb per section number.
-const slug = (t) => t.toLowerCase().replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
+// Source of truth is commander-template.md; overview.json only adds badge/blurb/pillar per section number.
+// Two states on one page: the overview (the deck as a ring) and the reader (one section, docs-style).
+// The URL hash picks the state, so chat deep links and the Back button need no extra code.
 const $ = (id) => document.getElementById(id);
-const sections = []; // {num, title, html, todo, id, card}
+const slug = (t) => t.toLowerCase().replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
 const count = (badge) => +(String(badge ?? "").match(/\d+/)?.[0] ?? 0); // "~12" -> 12
-let current = null; // id of the section open in the reader
-let opener = null; // the control that opened the reader, to give focus back on close
-let terms = []; // [term, meaning] pairs from the template's Glossary table
-const toggle = (id) => (current === id ? close() : open(id));
-const controls = () => document.querySelectorAll('[aria-controls="reader"]');
+const calm = matchMedia("(prefers-reduced-motion: reduce)");
+const wide = matchMedia("(min-width: 60rem)");
+const SVG = "http://www.w3.org/2000/svg";
+const DECK = 100, CX = 280, CY = 230, R1 = 124, R2 = 156;
+const sections = []; // {title, num, name, id, html, todo, pillar, badge, blurb, color}
+let terms = []; // [term, meaning] from the template's Glossary table
+let current = null; // id of the section in the reader, null on the overview
+let overviewY = 0; // scroll position to restore when coming back to the overview
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 function parse(md) {
-  const lines = md.split("\n");
-  let cur = null, banner = [];
-  for (const line of lines) {
+  let cur = null;
+  const banner = [];
+  for (const line of md.split("\n")) {
     const h2 = line.match(/^## (.+)/);
     if (h2) { cur = { title: h2[1], body: [] }; sections.push(cur); continue; }
     if (line.startsWith("# ")) { $("title").textContent = line.slice(2); continue; }
@@ -32,114 +38,132 @@ function parse(md) {
   return marked.parse(banner.join("\n"));
 }
 
-// Give every heading a GitHub-style id so the draft's own #anchors keep working.
-// textContent, not the HTML, so &quot; and &#39; don't end up in the slug.
+// GitHub-style heading ids so the template's own #anchors keep working; wide tables scroll in a wrapper.
 function withIds(html) {
   const d = document.createElement("div");
   d.innerHTML = html;
   for (const h of d.querySelectorAll("h3, h4")) h.id = slug(h.textContent);
-  // Wide tables scroll inside a wrapper, so the table itself can still fill the column.
   for (const t of d.querySelectorAll("table")) { const w = document.createElement("div"); w.className = "scroll"; t.before(w); w.append(t); }
   return d.innerHTML;
 }
 
-// One link per ### subsection: the pillar columns and the reader's contents list.
-function toc(s) {
-  const subs = document.createElement("ul");
-  subs.className = "subs";
-  const doc = document.createElement("div");
-  doc.innerHTML = s.html;
-  for (const h of doc.querySelectorAll("h3")) {
-    const a = document.createElement("a");
-    a.href = "#" + h.id;
-    a.textContent = h.textContent;
-    subs.append(document.createElement("li"));
-    subs.lastChild.append(a);
-  }
-  return subs;
-}
+const subs = (s) => [...new DOMParser().parseFromString(s.html, "text/html").querySelectorAll("h3")]
+  .map((h) => ({ id: h.id, text: h.textContent }));
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const link = (href, text, cls) => { const a = el("a", cls, text); a.href = href; return a; };
 
-// One entry per section: the heading's button opens it in place (and closes it again). Pillars also list their subsections.
-function card(s, over, pillar) {
-  const o = (s.num && over[s.num]) || {};
-  const n = count(o.badge);
-  const li = document.createElement("li");
-  li.className = "col" + (s.todo ? " todo" : "");
-  li.innerHTML = `<h2><button class="head" aria-expanded="false" aria-controls="reader"><span class="badge" aria-hidden="true"></span><strong></strong><span class="vh"></span></button></h2><p class="blurb"></p>`;
-  li.querySelector(".badge").textContent = o.badge ?? "";
-  li.querySelector("strong").textContent = s.name;
-  li.querySelector(".vh").textContent = n ? `, about ${n} cards` : "";
-  li.querySelector(".blurb").textContent = s.todo ? "To come." : o.blurb ?? "";
-  const head = li.querySelector(".head");
-  head.dataset.id = s.id;
-  head.addEventListener("click", () => toggle(s.id));
-  if (pillar) li.append(toc(s));
-  return li;
-}
-
-// Light up one pillar's slots in the deck strip (null clears it). Hover is a bonus; click still opens.
-function light(id) {
-  id ??= current; // leaving a hover falls back to the section being read
-  $("deck").classList.toggle("lit", !!id);
-  for (const i of $("deck").querySelectorAll(".slots i")) i.classList.toggle("on", i.dataset.id === id);
-}
-function hoverLights(el, id) {
-  el.addEventListener("mouseenter", () => light(id));
-  el.addEventListener("mouseleave", () => light(null));
-  el.addEventListener("focusin", () => light(id));
-  el.addEventListener("focusout", () => light(null));
-}
-
-// The hero: a Commander deck's 99 slots, the pillars' share coloured from their overview.json badge.
-function deck(pillars, over) {
-  const DECK = 99;
-  if (!pillars.length) {
-    $("deck").querySelector("figcaption").textContent = "The deck overview didn't load, so the sections are listed plainly below. Reloading the page may bring it back.";
-    return;
-  }
-  const slots = document.createElement("div");
-  slots.className = "slots";
-  slots.setAttribute("aria-hidden", "true");
-  const legend = document.createElement("div");
-  legend.className = "legend";
-  let used = 0;
-  pillars.forEach((s, i) => {
-    s.color = `var(--p${(i % 3) + 1})`; // three pillar colours in style.css; a fourth would reuse the first
-    const n = count(over[s.num].badge);
-    used += n;
-    for (let k = 0; k < n; k++) {
-      const slot = document.createElement("i");
-      slot.dataset.id = s.id;
-      slot.style.setProperty("--c", s.color);
-      slots.append(slot);
+// The ring: slot 0 is the commander, then each pillar's ~N slots in template order, then everything else.
+function ring(pillars) {
+  const svg = $("ring");
+  const slot = (i, cls, id) => {
+    const a = ((i + 0.5) / DECK) * 2 * Math.PI - Math.PI / 2;
+    const l = document.createElementNS(SVG, "line");
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    l.setAttribute("x1", (CX + R1 * c).toFixed(1)); l.setAttribute("y1", (CY + R1 * s).toFixed(1));
+    l.setAttribute("x2", (CX + R2 * c).toFixed(1)); l.setAttribute("y2", (CY + R2 * s).toFixed(1));
+    l.setAttribute("class", "slot " + cls);
+    l.style.setProperty("--i", i);
+    if (id) l.dataset.id = id;
+    return l;
+  };
+  const felt = document.createElementNS(SVG, "circle");
+  Object.entries({ cx: CX, cy: CY, r: R1 - 14, class: "felt" }).forEach(([k, v]) => felt.setAttribute(k, v));
+  svg.append(felt);
+  // Four seats, yours at the bottom, nearest the reader. The turn pointer lights each one as it passes.
+  [["You", 180], ["", 270], ["", 0], ["", 90]].forEach(([label, deg], k) => {
+    const a = (deg - 90) * Math.PI / 180, r = R2 + 30;
+    const g = document.createElementNS(SVG, "g");
+    g.setAttribute("class", "seat");
+    g.style.setProperty("--t", deg / 360); // fraction of the pointer's lap when it reaches this seat
+    g.setAttribute("transform", `translate(${(CX + r * Math.cos(a)).toFixed(1)} ${(CY + r * Math.sin(a)).toFixed(1)}) rotate(${deg})`);
+    g.innerHTML = `<rect x="-22" y="-5" width="44" height="10" rx="5"/>`;
+    svg.append(g);
+    if (label) {
+      const t = document.createElementNS(SVG, "text");
+      Object.entries({ x: CX, y: CY + r + 26, class: "seat-label", "text-anchor": "middle" }).forEach(([k2, v]) => t.setAttribute(k2, v));
+      t.textContent = label;
+      svg.append(t);
     }
-    const b = document.createElement("button");
-    b.dataset.id = s.id;
-    b.setAttribute("aria-controls", "reader");
-    b.setAttribute("aria-expanded", false);
-    b.innerHTML = `<strong></strong> <span class="n"></span>`;
-    b.style.setProperty("--c", s.color);
-    b.querySelector("strong").textContent = s.name;
-    b.querySelector(".n").textContent = over[s.num].badge;
-    b.setAttribute("aria-label", `${s.name}, about ${n} cards`);
-    b.addEventListener("click", () => toggle(s.id));
-    hoverLights(b, s.id);
-    legend.append(b);
   });
-  slots.insertAdjacentHTML("beforeend", "<i></i>".repeat(Math.max(DECK - used, 0)));
-  legend.insertAdjacentHTML("beforeend", `<span>Lands and your own categories, about ${DECK - used}</span>`);
-  $("deck").prepend(slots, legend);
-  $("deck").querySelector("figcaption").textContent =
-    `A Commander deck is 99 cards plus the commander. The pillars take about ${used} of them.`;
+  let i = 0;
+  svg.append(slot(i++, "cmd"));
+  for (const s of pillars) {
+    const n = count(s.badge);
+    const a = document.createElementNS(SVG, "a");
+    a.setAttribute("href", "#" + s.id);
+    a.setAttribute("class", "arc");
+    a.setAttribute("aria-label", `${s.name}, about ${n} cards`);
+    a.dataset.id = s.id;
+    a.style.setProperty("--c", s.color);
+    const start = i;
+    for (let k = 0; k < n; k++) a.append(slot(i++, "", s.id));
+    // A wide invisible band over the arc, so the whole arc is one easy target, not 12 thin lines.
+    const a0 = (start / DECK) * 2 * Math.PI - Math.PI / 2, a1 = (i / DECK) * 2 * Math.PI - Math.PI / 2;
+    const pt = (r, t) => `${(CX + r * Math.cos(t)).toFixed(1)} ${(CY + r * Math.sin(t)).toFixed(1)}`;
+    const hit = document.createElementNS(SVG, "path");
+    hit.setAttribute("d", `M${pt(R1 - 18, a0)} L${pt(R2 + 18, a0)} A${R2 + 18} ${R2 + 18} 0 0 1 ${pt(R2 + 18, a1)} L${pt(R1 - 18, a1)} A${R1 - 18} ${R1 - 18} 0 0 0 ${pt(R1 - 18, a0)}Z`);
+    hit.setAttribute("class", "hit");
+    a.prepend(hit);
+    // Label outside the arc's middle: big numeral, name under it.
+    const mid = (a0 + a1) / 2, lr = R2 + 34, right = Math.cos(mid) >= 0;
+    const t = document.createElementNS(SVG, "text");
+    t.setAttribute("class", "arc-label");
+    t.setAttribute("x", (CX + lr * Math.cos(mid)).toFixed(1));
+    t.setAttribute("y", (CY + lr * Math.sin(mid)).toFixed(1));
+    t.setAttribute("text-anchor", right ? "start" : "end");
+    t.innerHTML = `<tspan class="arc-n"></tspan><tspan class="arc-name" dy="18"></tspan>`;
+    t.firstChild.textContent = s.badge;
+    t.lastChild.textContent = s.name;
+    t.lastChild.setAttribute("x", t.getAttribute("x"));
+    a.append(t);
+    svg.append(a);
+    hover(a, s);
+  }
+  const rest = DECK - i;
+  while (i < DECK) svg.append(slot(i++, "rest"));
+  const turn = document.createElementNS(SVG, "g");
+  turn.setAttribute("class", "turn");
+  turn.innerHTML = `<path d="M${CX} ${CY - R2 - 12} l-7 -12 h14z"/>`;
+  svg.append(turn);
+  const flag = document.createElementNS(SVG, "g");
+  flag.setAttribute("class", "flag");
+  flag.id = "flag";
+  svg.append(flag);
+  $("ring-cap").textContent = pillars.length
+    ? `The pillars take about ${DECK - 1 - rest} of the 99. The other ${rest} are lands and your own categories.`
+    : "The deck overview didn't load, so the sections are listed plainly. Reloading may bring it back.";
 }
 
-// First mention of each glossary term in the open section links to the glossary, meaning in the tooltip.
+// Hovering or focusing a pillar (its arc or its row) lifts its arc and names it in the centre.
+function hover(node, s) {
+  const on = () => focusArc(s), off = () => focusArc(null);
+  node.addEventListener("pointerenter", on); node.addEventListener("pointerleave", off);
+  node.addEventListener("focusin", on); node.addEventListener("focusout", off);
+}
+function focusArc(s) {
+  s ??= sections.find((x) => x.id === current && x.pillar) ?? null; // leaving a hover falls back to the open section
+  document.body.toggleAttribute("data-lit", !!s);
+  for (const a of $("ring").querySelectorAll(".arc")) a.classList.toggle("on", a.dataset.id === s?.id);
+  $("center-n").textContent = s ? s.badge : "99";
+  $("center-l").textContent = s ? s.name : "+ your commander";
+}
+
+// The last section you read gets a small flag on the ring and a note on its row (kept between visits).
+function flag() {
+  const id = store.get("lastRead");
+  const s = sections.find((x) => x.id === id);
+  for (const r of document.querySelectorAll(".row")) r.classList.toggle("last", r.dataset.id === id);
+  const arc = s && $("ring").querySelector(`.arc[data-id="${id}"] .slot`);
+  $("flag").innerHTML = arc ? `<circle cx="${arc.getAttribute("x2")}" cy="${arc.getAttribute("y2")}" r="5"/>` : "";
+  $("flag").setAttribute("transform", "");
+}
+
+// First mention of each glossary term in a section links to the glossary, meaning in the tooltip.
 function linkTerms(root) {
   const seen = new Set();
-  const skip = (n) => n.parentElement.closest("a, code, h2, h3, h4, th");
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
-  while (walk.nextNode()) if (!skip(walk.currentNode)) nodes.push(walk.currentNode);
+  while (walk.nextNode()) if (!walk.currentNode.parentElement.closest("a, code, h2, h3, h4, th")) nodes.push(walk.currentNode);
   while (nodes.length) {
     const node = nodes.shift();
     for (const [term, meaning] of terms) {
@@ -149,146 +173,191 @@ function linkTerms(root) {
       seen.add(term);
       const word = node.splitText(m.index);
       nodes.push(node, word.splitText(m[0].length)); // re-scan the text either side for other terms
-      const a = document.createElement("a");
-      a.href = "#glossary";
-      a.className = "term";
+      const a = link("#glossary", word.data, "term");
       a.title = meaning;
-      a.textContent = word.data;
       word.replaceWith(a);
       break;
     }
   }
 }
 
-// Unnumbered sections ("How to read the numbers") sit open under the strip. Numbered sections before the
-// first pillar explain the strip, so the caption links to them; the rest sit below the pillar row.
-function render(over) {
-  let seenPillar = false;
-  const pillars = sections.filter((s) => s.num && over[s.num]?.pillar);
-  deck(pillars, over);
+function render(over, bannerHtml) {
+  const pal = ["var(--ramp)", "var(--draw)", "var(--kill)"];
+  let p = 0;
+  for (const s of sections) {
+    const o = (s.num && over[s.num]) || {};
+    Object.assign(s, { pillar: !!o.pillar && count(o.badge) > 0, badge: o.badge, blurb: o.blurb });
+    if (s.pillar) s.color = pal[p++ % pal.length]; // a fourth pillar would reuse the first colour
+  }
+  const pillars = sections.filter((s) => s.pillar);
+  $("banner").innerHTML = bannerHtml;
+  ring(pillars);
+
+  // Overview text: the first blurb as the opening.
+  const lead = sections.find((s) => s.num && !s.pillar && s.blurb);
+  if (lead) $("lede").append(el("p", "lede", lead.blurb));
+  for (const s of pillars) {
+    const li = el("li", "row pillar");
+    li.dataset.id = s.id;
+    li.style.setProperty("--c", s.color);
+    const a = link("#" + s.id, null, "row-link");
+    a.append(el("span", "n", s.badge), el("strong", null, s.name), el("span", "blurb", s.blurb ?? ""));
+    a.setAttribute("aria-label", `${s.name}, about ${count(s.badge)} cards. ${s.blurb ?? ""}`);
+    li.append(a);
+    const list = subs(s);
+    if (list.length) {
+      const ul = el("ul", "subs");
+      ul.setAttribute("aria-label", `${s.name} subsections`);
+      for (const h of list) ul.append(el("li")), ul.lastChild.append(link("#" + h.id, h.text));
+      li.append(ul);
+    }
+    $("pillars").append(li);
+    hover(a, s);
+  }
+  // Then the unnumbered sections ("How to read the numbers") in full, right under the pillars they qualify.
+  for (const s of sections.filter((x) => !x.num && x.title !== "Glossary")) {
+    const box = el("section", "note");
+    box.append(el("h2", null, s.title));
+    box.insertAdjacentHTML("beforeend", s.html);
+    $("pillars").after(box);
+  }
+  for (const s of sections.filter((x) => (x.num || x.title === "Glossary") && !x.pillar)) {
+    const li = el("li", "row" + (s.todo ? " todo" : ""));
+    li.dataset.id = s.id;
+    const a = link("#" + s.id, null, "row-link");
+    a.append(el("span", "k", s.num ?? "A–Z"), el("strong", null, s.name), el("span", "blurb", s.todo ? "To come." : s.blurb ?? ""));
+    li.append(a);
+    $("others").append(li);
+  }
+
+  // Reader contents: every readable section; the open one expands to its subsections.
+  for (const s of sections.filter((x) => x.num || x.title === "Glossary")) {
+    const li = el("li");
+    li.dataset.id = s.id;
+    if (s.color) li.style.setProperty("--c", s.color);
+    li.append(link("#" + s.id, s.num ? `${s.num}. ${s.name}` : s.name));
+    const list = subs(s);
+    if (list.length) {
+      const ol = el("ol");
+      for (const h of list) ol.append(el("li")), ol.lastChild.append(link("#" + h.id, h.text));
+      li.append(ol);
+    }
+    $("toc-list").append(li);
+  }
+
   const glossary = document.createElement("div");
   glossary.innerHTML = sections.find((s) => s.title === "Glossary")?.html ?? "";
   terms = [...glossary.querySelectorAll("tbody tr")].map((tr) => [tr.cells[0].textContent.trim(), tr.cells[1]?.textContent.trim() ?? ""]);
-  const lead = [];
-  for (const s of sections) {
-    if (!s.num && s.title !== "Glossary") {
-      const sec = document.createElement("details");
-      sec.open = true;
-      sec.innerHTML = `<summary></summary>` + s.html;
-      sec.querySelector("summary").textContent = s.title;
-      $("intro").append(sec);
-      continue;
-    }
-    s.card = true;
-    const pillar = pillars.includes(s);
-    seenPillar ||= pillar;
-    if (!seenPillar && pillars.length) { lead.push(s); continue; }
-    const li = card(s, over, pillar);
-    if (pillar) { li.style.setProperty("--c", s.color); hoverLights(li, s.id); }
-    $(pillar ? "pillars" : seenPillar ? "after" : "before").append(li);
-  }
-  if (lead.length) {
-    const cap = $("deck").querySelector("figcaption");
-    cap.append(" More in ");
-    lead.forEach((s, i) => {
-      const a = document.createElement("a");
-      a.href = "#" + s.id;
-      a.textContent = s.name;
-      cap.append(i ? ", " : "", a);
-    });
-    cap.append(".");
-  }
+  flag();
 }
 
-// Where the reader goes: under the row of the section's button (on a phone, the stacked columns mean
-// right under the tapped column itself); sections with no button, like the ones the caption links, go under the intro.
-// shortcut: placement is decided on open, not on resize; reopen to re-place after rotating a phone.
-const slot = document.createElement("li");
-slot.className = "reader-slot";
-function place(id) {
-  const li = document.querySelector(`.head[data-id="${id}"]`)?.closest("li");
-  if (!li) return $("intro").after($("reader"));
-  if (matchMedia("(max-width: 48rem)").matches) { slot.append($("reader")); li.after(slot); }
-  else li.closest("ul").after($("reader"));
-}
+// The sections the reader pages through, in template order.
+const readable = () => sections.filter((s) => s.num || s.title === "Glossary");
 
-// Opening from the overview, or moving to another section, adds a history entry (state.reader counts them),
-// so phone Back steps back through what you read and then closes the reader instead of leaving the site.
-// Jumping to an anchor inside the open section replaces the entry.
-function open(id, anchor, fromHistory) {
+function show(id, anchor) {
   const s = sections.find((x) => x.id === id);
-  if (!s) return;
-  const url = "#" + (anchor || id);
-  const depth = history.state?.reader ?? 0;
-  // Safari doesn't focus clicked buttons/links, so fall back to the element the click landed on.
-  if (!current) opener = document.activeElement !== document.body ? document.activeElement : fromHistory ? null : lastClick;
-  if (!fromHistory) current === id ? history.replaceState(history.state, "", url) : history.pushState({ reader: depth + 1 }, "", url);
-  const reader = $("reader");
-  if (current !== id) {
-    $("reader-title").textContent = s.title;
-    $("reader-body").innerHTML = s.html;
-    if (s.title !== "Glossary") linkTerms($("reader-body"));
-    $("reader-toc").replaceChildren(toc(s));
-    const cards = sections.filter((x) => x.card);
-    const next = cards[cards.indexOf(s) + 1];
-    $("reader-next").hidden = !next;
-    if (next) { $("reader-next").href = "#" + next.id; $("reader-next").textContent = "Next: " + next.title; }
-    reader.style.setProperty("--c", s.color ?? "var(--fg)");
-    place(id);
-    for (const c of controls()) c.setAttribute("aria-expanded", c.dataset.id === id);
-    current = id;
-    reader.hidden = false;
-    light(id);
+  const body = document.body;
+  if (!s) {
+    // Back to the overview: restore where you were, then focus the row you opened.
+    const was = current;
+    current = null;
+    body.dataset.view = "overview";
+    $("doc").hidden = true;
+    for (const n of document.querySelectorAll(".back")) n.hidden = true;
+    focusArc(null);
+    flag();
+    scrollTo(0, overviewY);
+    document.querySelector(`.row[data-id="${was}"] .row-link`)?.focus({ preventScroll: true });
+    return;
   }
-  const t = anchor && $("reader-body").querySelector("#" + CSS.escape(anchor));
-  (t || reader).scrollIntoView({ block: "start" });
-  const f = t || $("reader-title");
+  if (!current) overviewY = scrollY;
+  const changed = current !== id;
+  current = id;
+  body.dataset.view = "reader";
+  for (const n of document.querySelectorAll(".back")) n.hidden = false;
+  if (changed) {
+    $("doc-num").textContent = s.num ?? "";
+    $("doc-name").textContent = s.name;
+    $("doc").style.setProperty("--c", s.color ?? "var(--ink)");
+    $("doc-body").innerHTML = s.html;
+    if (s.title !== "Glossary") linkTerms($("doc-body"));
+    const list = readable(), k = list.indexOf(s);
+    for (const [a, t, label] of [[$("prev"), list[k - 1], "Previous"], [$("next"), list[k + 1], "Next"]]) {
+      a.hidden = !t;
+      if (t) { a.href = "#" + t.id; a.innerHTML = `<small>${label}</small><span></span>`; a.lastChild.textContent = t.num ? `${t.num}. ${t.name}` : t.name; }
+    }
+    for (const li of $("toc-list").children) {
+      li.classList.toggle("open", li.dataset.id === id);
+      if (li.dataset.id === id) li.firstChild.setAttribute("aria-current", "page");
+      else li.firstChild.removeAttribute("aria-current");
+    }
+    $("crumb").textContent = s.num ? `${s.num}. ${s.name}` : s.name;
+    $("doc").hidden = false;
+    $("doc").classList.remove("enter"); void $("doc").offsetWidth; $("doc").classList.add("enter");
+    $("toc").open = wide.matches;
+    store.set("lastRead", id);
+    spy();
+  }
+  focusArc(null);
+  const t = anchor && $("doc-body").querySelector("#" + CSS.escape(anchor));
+  if (t) t.scrollIntoView({ block: "start" });
+  else if (changed) scrollTo(0, 0);
+  const f = t || $("doc-title");
   f.tabIndex = -1;
   f.focus({ preventScroll: true });
 }
 
-function close(fromHistory) {
-  if (!current) return;
-  if (!fromHistory && history.state?.reader) return history.go(-history.state.reader); // popstate does the closing
-  if (!fromHistory) history.replaceState(null, "", location.pathname + location.search);
-  const head = document.querySelector(`.head[data-id="${current}"]`);
-  $("reader").hidden = true;
-  current = null;
-  for (const c of controls()) c.setAttribute("aria-expanded", false);
-  light(null);
-  // Back to the control you opened it from. Arrived by a link? Show the overview from the top instead.
-  if (opener?.isConnected) opener.focus();
-  else { scrollTo(0, 0); head?.focus({ preventScroll: true }); }
-  opener = null;
+// Which section owns a hash: the section itself, or the one whose HTML holds that heading id.
+function route(first) {
+  const a = decodeURIComponent(location.hash.replace(/^#/, ""));
+  const s = a && (sections.find((x) => x.id === a) || sections.find((x) => x.html.includes(`id="${a}"`)));
+  if (a && !s) return; // a hash that isn't a section or heading (the skip link, a typo): stay where you are
+  const apply = () => show(s?.id, s && s.id !== a ? a : undefined);
+  const toReader = !!s !== !!current;
+  // The ring morphs between the table and the sidebar; same-state moves (section to section) just swap.
+  if (toReader && first !== true && document.startViewTransition && !calm.matches) document.startViewTransition(apply);
+  else apply();
 }
 
-// Open whichever section owns an anchor: the one whose HTML holds that id ("27-left-out..." is in section 2).
-function route(hash, fromHistory) {
-  const a = hash.replace(/^#/, "");
-  if (!a) return;
-  const s = sections.find((x) => x.id === a) || sections.find((x) => x.html.includes(`id="${a}"`));
-  if (s) open(s.id, s.id === a ? undefined : a, fromHistory);
+// Mark the subsection in view in the contents, so the sidebar always says where you are.
+let observer;
+function spy() {
+  observer?.disconnect();
+  const heads = [...$("doc-body").querySelectorAll("h3")];
+  const links = new Map(heads.map((h) => [h, $("toc-list").querySelector(`a[href="#${CSS.escape(h.id)}"]`)]));
+  observer = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) {
+      for (const l of links.values()) l?.classList.remove("here");
+      links.get(e.target)?.classList.add("here");
+    }
+  }, { rootMargin: "0px 0px -70% 0px" });
+  heads.forEach((h) => observer.observe(h));
 }
 
-let lastClick = null;
-document.addEventListener("click", (e) => { lastClick = e.target.closest("button, a"); }, true);
+// In-page links: a link into the open section only scrolls; the rest go through the hash.
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a[href^='#']");
-  if (a) { e.preventDefault(); route(a.getAttribute("href")); }
-  if (e.target.closest("[data-close]")) close();
+  if (!a || e.metaKey || e.ctrlKey) return;
+  if (a.matches(".skip")) return;
+  if (!wide.matches && a.closest(".toc")) $("toc").open = false;
+  const h = a.getAttribute("href");
+  if (h === "#") { e.preventDefault(); if (current) history.pushState(null, "", location.pathname + location.search); route(); return; }
+  if (h === location.hash) { e.preventDefault(); route(); }
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && current) close(); });
-// Back/forward and hand-edited hashes. Fragment navigation fires popstate, so no hashchange listener.
-addEventListener("popstate", () => (location.hash ? route(location.hash, true) : close(true)));
+addEventListener("hashchange", route);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && current) { history.pushState(null, "", location.pathname + location.search); route(); }
+});
+wide.addEventListener("change", () => { if (current) $("toc").open = wide.matches; });
 
 Promise.all([
   fetch("commander-template.md").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
   fetch("overview.json").then((r) => (r.ok ? r.json() : {})).catch((e) => (console.warn("overview.json ignored:", e), {})),
 ]).then(([md, over]) => {
-  $("banner").innerHTML = parse(md);
-  render(over);
-  route(location.hash, true);
+  render(over, parse(md));
+  document.body.classList.add("ready");
+  route(true); // arriving from a link: land straight on the section, no transition
 }).catch((err) => {
-  $("banner").textContent = "The template didn't load (error " + err.message + "). Try reloading the page." +
-    (location.protocol === "file:" ? " Browsers block this on file:// pages: serve the folder instead, e.g. `python3 -m http.server`." : "");
+  $("lede").textContent = "The template didn't load (error " + err.message + "). Try reloading the page." +
+    (location.protocol === "file:" ? " Browsers block this on file:// pages: serve the folder instead, e.g. python3 -m http.server." : "");
 });

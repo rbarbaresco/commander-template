@@ -34,7 +34,7 @@ It is one experienced player's method and reasoning, not a database or an aggreg
 
 - `commander-template.md` is the single source of truth. The page fetches and renders it at runtime, so a new `## ` section appears without code changes. It is the owner's own writing: tools and agents never edit it, and they raise gaps or contradictions with the owner instead.
 - `overview.json` adds only a per-section badge and blurb, and marks which sections are pillars.
-- A static site on GitHub Pages, served from the repo root and deployed on every push to `main`. No build step; `marked` and the Literata font are vendored.
+- A static site on GitHub Pages, served from the repo root and deployed on every push to `main`. No build step; `marked`, the Literata font and the Big Shoulders Display font are vendored.
 - Text only, with no card images. `[[Card Name]]` in the template becomes an exact-name Scryfall link.
 - Card names and rules facts are checked on Scryfall, never written from memory.
 - English only for now. No colour selector until the template has per-colour guidelines.
