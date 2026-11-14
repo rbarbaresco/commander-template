@@ -103,10 +103,14 @@ function route(hash) {
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a[href^='#']");
   if (a) { e.preventDefault(); route(a.getAttribute("href")); }
-  if (e.target === $("panel")) $("panel").close(); // backdrop click
+  // The dialog itself is the target for both backdrop and padding clicks; close only outside its box.
+  if (e.target === $("panel")) {
+    const r = $("panel").getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $("panel").close();
+  }
 });
 addEventListener("hashchange", () => route(location.hash));
-$("panel").addEventListener("close", () => history.replaceState(null, "", location.pathname));
+$("panel").addEventListener("close", () => history.replaceState(null, "", location.pathname + location.search));
 
 Promise.all([
   fetch("commander-template.md").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
