@@ -21,15 +21,18 @@ function parse(md) {
     const body = s.body.join("\n").trim().replace(/\[\[([^\]]+)\]\]/g, (_, n) =>
       `[${n}](https://scryfall.com/search?q=${encodeURIComponent('!"' + n + '"')})`);
     s.todo = /^\*To come/.test(body);
-    s.html = marked.parse(body.replace(/^### (.+)$/gm, "### $1"), { gfm: true });
+    s.html = withIds(marked.parse(body, { gfm: true }));
   }
   return marked.parse(banner.join("\n"));
 }
 
 // Give every heading a GitHub-style id so the draft's own #anchors keep working.
+// textContent, not the HTML, so &quot; and &#39; don't end up in the slug.
 function withIds(html) {
-  return html.replace(/<h([34])>(.*?)<\/h\1>/g, (_, l, t) =>
-    `<h${l} id="${slug(t.replace(/<[^>]+>/g, ""))}">${t}</h${l}>`);
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  for (const h of d.querySelectorAll("h3, h4")) h.id = slug(h.textContent);
+  return d.innerHTML;
 }
 
 // One card per section: header button opens it, ### subsections are listed with their first paragraph.
@@ -43,7 +46,7 @@ function card(s, over) {
   li.querySelector(".blurb").textContent = s.todo ? "To come." : o.blurb ?? "";
   li.querySelector(".head").addEventListener("click", () => open(s.id));
   const doc = document.createElement("div");
-  doc.innerHTML = withIds(s.html);
+  doc.innerHTML = s.html;
   for (const h of doc.querySelectorAll("h3")) {
     const item = document.createElement("li");
     const a = document.createElement("a");
@@ -82,19 +85,18 @@ function render(over) {
 function open(id, anchor) {
   const s = sections.find((x) => x.id === id);
   if (!s) return;
-  $("panel-body").innerHTML = `<h2 id="panel-title">${s.title}</h2>` + withIds(s.html);
+  $("panel-body").innerHTML = `<h2 id="panel-title">${s.title}</h2>` + s.html;
   if (!$("panel").open) $("panel").showModal();
   history.replaceState(null, "", "#" + (anchor || id));
   const t = anchor && $("panel-body").querySelector("#" + CSS.escape(anchor));
   t ? t.scrollIntoView() : ($("panel").scrollTop = 0);
 }
 
-// Open whichever section owns an anchor: "27-left-out..." belongs to section 2.
+// Open whichever section owns an anchor: the one whose HTML holds that id ("27-left-out..." is in section 2).
 function route(hash) {
   const a = hash.replace(/^#/, "");
   if (!a) return;
-  const num = (a.match(/^(\d)/) || [])[1];
-  const s = sections.find((x) => x.id === a) || sections.find((x) => x.num === num);
+  const s = sections.find((x) => x.id === a) || sections.find((x) => x.html.includes(`id="${a}"`));
   if (s) open(s.id, s.id === a ? undefined : a);
 }
 
