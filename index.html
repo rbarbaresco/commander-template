@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Commander Deck Template</title>
 <meta name="description" content="A personal Commander deck-building template: the pillars, the numbers, and the caveats.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88'%3E%3Crect width='63' height='88' rx='6' fill='%232a7262'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 <link rel="alternate" type="text/markdown" href="commander-template.md" title="Template as Markdown">
 </head>
@@ -12,22 +13,33 @@
 <header>
   <h1 id="title">Commander Deck Template</h1>
   <div id="banner"></div>
-  <div id="intro"></div>
+  <p class="help">New to Commander? The <a href="#glossary">glossary</a> explains the terms.</p>
 </header>
 <main>
   <figure id="deck" class="deck">
     <figcaption></figcaption>
   </figure>
+  <div id="intro"></div>
   <ul id="before" class="rows" aria-label="Before the pillars"></ul>
   <ul id="pillars" class="pillars" aria-label="The pillars"></ul>
   <ul id="after" class="rows" aria-label="After the pillars"></ul>
+  <!-- The reading view opens in place: app.js moves it right after the row of the section you opened. -->
+  <section id="reader" class="reader" hidden aria-labelledby="reader-title">
+    <div class="bar">
+      <h2 id="reader-title" tabindex="-1"></h2>
+      <button type="button" class="close" data-close>Close</button>
+    </div>
+    <nav id="reader-toc" aria-label="In this section"></nav>
+    <article id="reader-body"></article>
+    <nav class="reader-end" aria-label="Continue reading">
+      <a id="reader-next" href="#"></a>
+      <button type="button" class="close" data-close>Back to overview</button>
+    </nav>
+  </section>
 </main>
-<dialog id="panel" aria-labelledby="panel-title">
-  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
-  <article id="panel-body"></article>
-</dialog>
 <footer>
   <p>For bots and LLMs: read <a href="commander-template.md">the template as Markdown</a> or <a href="llms.txt">llms.txt</a>.</p>
+  <p>Template by Rodrigo Barbaresco.</p>
   Unofficial fan content. Not approved or endorsed by Wizards of the Coast. Magic: The Gathering is a trademark of Wizards of the Coast LLC.
 </footer>
 <noscript>This page needs JavaScript to show the template.</noscript>

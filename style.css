@@ -3,11 +3,11 @@
 
 /* Cool paper and ink. One colour per pillar, deliberately not mana colours: ramp isn't only green. */
 :root {
-  --bg: #eef0f2; --surface: #fff; --fg: #1f2430; --muted: #5b6270; --line: #d3d7de;
-  --p1: #2f7d6b; --p2: #3b5ba9; --p3: #a23b56;
+  --bg: #eef0f2; --surface: #fff; --fg: #1f2430; --muted: #5b6270; --line: #d3d7de; --slot: #808794;
+  --p1: #2a7262; --p2: #3b5ba9; --p3: #a23b56;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #171a21; --surface: #20242d; --fg: #e6e8ec; --muted: #9aa1ae; --line: #3a404c;
+  :root { --bg: #171a21; --surface: #20242d; --fg: #e6e8ec; --muted: #9aa1ae; --line: #3a404c; --slot: #646b79;
     --p1: #5fb8a3; --p2: #8aa3e6; --p3: #e07a93; }
 }
 
@@ -18,12 +18,19 @@ a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: 
 a:hover { text-decoration-color: currentColor; }
 :focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; border-radius: 2px; }
 button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+::selection { background: color-mix(in srgb, var(--p2) 30%, transparent); }
+p, li, figcaption { text-wrap: pretty; }
+h1, h2 { text-wrap: balance; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Header: title, the template's own status note, and the unnumbered sections folded away. */
+/* Header: title, the template's own status note, and the way into the glossary. */
 h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; font-weight: 750; letter-spacing: -.02em; margin: 3rem 0 1rem; }
-#banner { color: var(--muted); font-size: .9rem; max-width: 40rem; }
+#banner { color: var(--muted); font-size: .9rem; max-width: 65ch; }
+.help { margin: .75rem 0 0; font-size: .95rem; }
 #banner blockquote { margin: 0; }
 #banner p { margin: 0 0 .5rem; }
+/* The unnumbered sections ("How to read the numbers") sit under the strip they explain. */
 #intro details { max-width: 40rem; margin: .5rem 0; }
 #intro summary { cursor: pointer; font-weight: 650; }
 #intro details[open] summary { margin-bottom: .25rem; }
@@ -31,10 +38,10 @@ h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; font-weight: 750; le
 /* The deck strip: 99 card-shaped slots, filled column by column so each ~12 pillar is a 4x3 block. */
 .deck { margin: 3rem 0 1rem; }
 .slots { display: grid; grid-template-rows: repeat(3, auto); grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
-.slots i { aspect-ratio: 63 / 88; border-radius: 3px; background: var(--c, none); box-shadow: inset 0 0 0 1px var(--c, var(--line)); transition: opacity .15s; }
+.slots i { aspect-ratio: 63 / 88; border-radius: 3px; background: var(--c, none); box-shadow: inset 0 0 0 1px var(--c, var(--slot)); transition: opacity .15s; }
 .deck.lit .slots i[data-id]:not(.on) { opacity: .2; }
-.legend { display: flex; flex-wrap: wrap; gap: .25rem 1.75rem; margin-top: .75rem; font-size: .95rem; color: var(--muted); }
-.legend button { all: unset; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1.75rem; margin-top: .75rem; font-size: .95rem; color: var(--muted); }
+.legend button { all: unset; cursor: pointer; padding: .35rem 0; }
 .legend button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
 .legend strong { color: var(--c); }
 .n, .badge { font-variant-numeric: tabular-nums lining-nums; }
@@ -42,38 +49,57 @@ h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; font-weight: 750; le
 
 /* Sections. Pillars are decklist columns headed by their count; the rest are a quiet row of links. */
 .rows, .pillars, .subs { list-style: none; margin: 0; padding: 0; }
+.col h2 { margin: 0; font-size: inherit; line-height: inherit; }
 .head { all: unset; cursor: pointer; display: block; }
 .head:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
-.head .badge:empty { display: none; }
-.head strong { font-weight: 700; }
-.head .blurb { display: block; color: var(--muted); }
+.badge:empty, .blurb:empty, .subs:empty { display: none; }
+.head strong { font-weight: 700; text-decoration: underline 1px transparent; text-underline-offset: .2em; }
+.head:hover strong { text-decoration-color: currentColor; }
+.head[aria-expanded="true"] strong { text-decoration: underline 3px var(--c, currentColor); }
+.blurb { margin: 0; color: var(--muted); }
 
+.rows:empty { display: none; }
 .rows { display: flex; flex-wrap: wrap; gap: .5rem 2.5rem; margin: 1.5rem 0; }
 .rows .col { max-width: 22rem; }
-.rows .head strong { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2em; }
+.rows .head strong { text-decoration-color: var(--muted); }
 .rows .head:hover strong { text-decoration-color: currentColor; }
 .rows .badge { margin-right: .35rem; }
 .todo { color: var(--muted); }
 
 .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 2.5rem; margin: 2.5rem 0; }
 .pillars .col { border-top: 4px solid var(--c); padding-top: .75rem; }
-.pillars .head { font-size: 1.3rem; line-height: 1.3; }
+.pillars h2 { font-size: 1.3rem; line-height: 1.3; }
 .pillars .badge { color: var(--c); font-weight: 750; margin-right: .3rem; }
 .pillars .blurb { font-size: 1rem; margin-top: .15rem; }
-.subs { margin-top: 1rem; display: grid; gap: .35rem; font-size: .95rem; line-height: 1.45; }
+.subs { margin-top: 1rem; display: grid; gap: .2rem; font-size: .95rem; line-height: 1.45; }
+.subs a { display: inline-block; padding: .15rem 0; }
+/* The open pillar hands its contents list to the reader, so it isn't shown (or read out) twice. */
+.col:has(> h2 [aria-expanded="true"]) > .subs { display: none; }
+a.term { text-decoration-style: dotted; }
 
 @media (prefers-reduced-motion: reduce) { .slots i { transition: none; } }
 
-/* Reading view. The top rule takes the pillar's colour so you know where you are. */
-dialog { width: min(44rem, calc(100% - 32px)); max-height: 90vh; padding: 1.25rem 1.75rem 2rem; border: 0; border-top: 6px solid var(--c, var(--fg)); border-radius: 4px; background: var(--surface); color: var(--fg); }
-dialog::backdrop { background: rgb(15 18 25 / .6); }
-/* The form is the sticky box: a sticky button can't leave its collapsed form, so it scrolled away. */
-dialog > form { position: sticky; top: 0; float: right; }
-.close { font-size: 1.4rem; line-height: 1; padding: .2rem .55rem; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
-#panel-body { max-width: 38rem; }
-#panel-body h2 { font-size: 1.7rem; line-height: 1.2; margin: .25rem 3rem 1rem 0; }
-#panel-body h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
-table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: .92rem; line-height: 1.45; }
+/* Reading view, opened in place under its row. The top rule takes the section's colour so you know where you are. */
+.reader { display: grid; grid-template-columns: minmax(0, 40rem) minmax(0, 15rem); grid-template-areas: "bar bar" "body toc" "end end"; column-gap: 4rem;
+  margin: 0 0 3rem; padding: 0 1.75rem 2rem; background: var(--surface); border-top: 6px solid var(--c, var(--fg)); }
+.bar { grid-area: bar; position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .75rem 0; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar h2 { margin: 0; font-size: 1.5rem; line-height: 1.2; }
+.bar h2:focus, #reader-body [tabindex="-1"]:focus { outline: none; } /* focused by script so screen readers land there, not a control */
+.close { flex: none; font-size: .95rem; padding: .45rem .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.close:hover { border-color: var(--muted); }
+#reader-toc:has(.subs:empty) { display: none; } /* otherwise its "toc" area becomes implicit grid tracks */
+.reader:has(#reader-toc .subs:empty) { grid-template-columns: minmax(0, 40rem); grid-template-areas: "bar" "body" "end"; }
+.reader-slot { grid-column: 1 / -1; flex-basis: 100%; }
+#reader-toc { grid-area: toc; align-self: start; position: sticky; top: 4.5rem; padding-top: 1.5rem; }
+#reader-toc .subs { margin: 0; font-size: .9rem; }
+#reader-body { grid-area: body; padding-top: .5rem; }
+#reader-body h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; scroll-margin-top: 4.5rem; }
+.reader-end { grid-area: end; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.reader-end .close { margin-left: auto; }
+#reader-next { font-weight: 650; font-size: 1.1rem; padding: .35rem 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; line-height: 1.45; }
 th, td { border-bottom: 1px solid var(--line); padding: .45rem .75rem .45rem 0; text-align: left; vertical-align: top; }
 th { font-weight: 700; border-bottom-color: var(--fg); }
 code { font-size: .9em; background: var(--bg); padding: .05rem .3rem; border-radius: 3px; }
@@ -82,6 +108,13 @@ footer { color: var(--muted); font-size: .85rem; padding: 2rem 16px 3rem; border
 footer p { margin: 0 0 .5rem; }
 
 @media (max-width: 48rem) {
-  .slots { grid-template-rows: none; grid-auto-flow: row; grid-template-columns: repeat(12, 1fr); gap: 3px; }
-  dialog { padding: 1rem 1.1rem 1.5rem; }
+  /* Six rows keep the strip short on a phone and each pillar still a solid block. */
+  .slots { grid-template-rows: repeat(6, auto); gap: 3px; }
+  .legend { column-gap: 1.1rem; }
+  .legend > span { flex-basis: 100%; }
+  .legend button, .subs a, .head { padding: .55rem 0; }
+  .subs { gap: 0; }
+  .reader, .reader:has(#reader-toc .subs:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "toc" "body" "end"; margin-inline: -16px; padding: 0 16px 1.5rem; }
+  #reader-toc { position: static; padding-top: 1rem; }
+  .close { padding: .7rem 1rem; }
 }
