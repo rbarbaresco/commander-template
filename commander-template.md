@@ -26,7 +26,9 @@ With about 12 of each, your deck should *function*: you can cast your spells, yo
 - **Redundancy**: several cards that do the same job, so losing one doesn't break the plan.
 - **Engine** cards: cards that generate value every turn.
 
-**12 is a guideline, not a hard rule.** A pillar can run lighter when the commander covers it. For example, a commander with an efficient draw engine can run fewer than 12 card-advantage cards. The freed slots go to the other two pillars, or to extra categories such as tutors, counters or "engine" cards.
+**12 is a guideline, not a hard rule.** Start from 12/12/12: with that, your deck will function no matter what. You will still have unlucky games where you brick, but in general you won't have problems playing it. Then adjust as you build. By the end, it doesn't need to be 12/12/12: each pillar can land anywhere from about 8 to about 12, in any combination. It all depends on what your commander covers and what your other categories cover. Still, fewer than 30 cards across the three pillars combined only makes sense in very specific cases.
+
+A pillar can run lighter when the commander covers it. For example, a commander with an efficient draw engine can run fewer than 12 card-advantage cards. The freed slots go to the other two pillars, or to extra categories such as tutors, counters or "engine" cards.
 
 Each pillar also has to be **well built**: having 12 cards isn't enough if they're the wrong 12. The sections below say what the right cards look like, starting with ramp.
 
