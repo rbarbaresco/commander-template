@@ -114,7 +114,7 @@ $("panel").addEventListener("close", () => history.replaceState(null, "", locati
 
 Promise.all([
   fetch("commander-template.md").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
-  fetch("overview.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+  fetch("overview.json").then((r) => (r.ok ? r.json() : {})).catch((e) => (console.warn("overview.json ignored:", e), {})),
 ]).then(([md, over]) => {
   $("banner").innerHTML = parse(md);
   render(over);
